@@ -1,3 +1,8 @@
+# ---- Claude Code / local agent config ----
+CLAUDE.md
+.claude/
+.mcp.json
+
 # ---- Genero / fglpkg ----
 # fglpkg local install + lockfile
 .fglpkg/
