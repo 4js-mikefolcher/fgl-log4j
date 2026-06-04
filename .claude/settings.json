@@ -1,0 +1,28 @@
+{
+  "env": {
+    "FGLDIR": "/Applications/Genero Studio 6.00.03-202601281102.app/Contents/Resources/fgl",
+    "PATH": "/Applications/Genero Studio 6.00.03-202601281102.app/Contents/Resources/fgl/bin:${PATH}"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(fglcomp -M -Wall uuid_test.4gl)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun uuid_test.42m)",
+      "Bash(fglcomp -M -Wall uuid_compare.4gl)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun uuid_compare.42m)",
+      "Bash(fglcomp -M -Wall hello.4gl)",
+      "Bash(fglcomp -M -Wall uuid_util.4gl)",
+      "Bash(fglcomp -M -Wall test_uuid.4gl)",
+      "Bash(/bin/ls -la /Volumes/SandiskSD/ai-webinar/)",
+      "Bash(/bin/ls -la /Volumes/SandiskSD/ai-webinar/.claude/)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun test_uuid.42m)",
+      "Bash(fglcomp -M -Wall uuid.4gl)",
+      "Bash(fgllink -o test_uuid.42r test_uuid.42m uuid.42m)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun test_uuid.42r)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun uuid.42m)",
+      "Bash(fglcomp -M -Wall uuid_demo.4gl)",
+      "Bash(FGLGUI=0 TERM=xterm fglrun uuid_demo.42m)",
+      "Bash(/bin/ls /Volumes/SandiskSD/ai-webinar/)",
+      "Bash(/bin/ls /Users/mikefolcher/.claude/projects/-Volumes-SandiskSD-ai-webinar/memory/)"
+    ]
+  }
+}

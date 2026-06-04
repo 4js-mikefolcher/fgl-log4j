@@ -1,3 +1,17 @@
+# ---- Genero / fglpkg ----
+# fglpkg local install + lockfile
+.fglpkg/
+fglpkg.lock
+
+# Genero build artifacts
+*.42m
+*.42r
+*.42f
+*.4pdb
+# Compiled package module output (generated from lib/ by fglcomp)
+com/fourjs/log4j/
+
+# ---- Java (GitHub template) ----
 # Compiled class file
 *.class
 

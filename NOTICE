@@ -1,0 +1,13 @@
+fgl-log4j
+Copyright 2026 Four Js Development Tools
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product is a Genero BDL facade over Apache Log4j 2 and requires it at
+runtime. Apache Log4j is a separate work, not redistributed here:
+
+    Apache Log4j
+    Copyright 1999-2021 The Apache Software Foundation
+    https://logging.apache.org/log4j/2.x/
+
+    Licensed under the Apache License, Version 2.0.
