@@ -1,6 +1,6 @@
 {
   "name": "fgl-log4j",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Genero BDL logging facade over Apache Log4j 2 (org.apache.logging.log4j)",
   "author": "michael.folcher@4js.com",
   "license": "Apache-2.0",
