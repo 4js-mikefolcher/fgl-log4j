@@ -8,6 +8,10 @@ MAIN
     DEFINE args DYNAMIC ARRAY OF STRING
 
     LET name = "com.fourjs.log4j.demo"
+
+    DISPLAY "===== 0. loaded log4j-core (version @ jar) ====="
+    DISPLAY log.getLog4jInfo()
+
     CALL log.setRootLevel("DEBUG")
 
     DISPLAY "===== 1. plain severity methods ====="

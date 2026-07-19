@@ -32,53 +32,76 @@ MAIN
 END MAIN
 ```
 
-## Dependency on the Genero GRE's bundled Log4j ⚠️
+## Coexistence with the Genero Report Engine's Log4j ⚠️
 
 > **This is the most important compatibility note for this package.**
 
-The Genero Runtime Environment (GRE) — the JVM bridge `fglrun` uses for
-`IMPORT JAVA` — **ships its own Log4j 2** in its jar directory:
+The Genero Report Engine's `gre.jar` uses Log4j 2 internally. It contains
+**no log4j classes itself** — it pulls them in through its
+`META-INF/MANIFEST.MF` `Class-Path`, which references its own bundled copy
+next to it:
 
 ```
-$FGLDIR/../gre/lib/jars/log4j-api-2.17.1.jar
-$FGLDIR/../gre/lib/jars/log4j-core-2.17.1.jar
+$GREDIR/lib/jars/log4j-api-2.17.1.jar
+$GREDIR/lib/jars/log4j-core-2.17.1.jar
 ```
 
-(Verified on Genero 6.00.03; path is `gre/lib/jars` relative to the
-Genero install root.)
+(Verified on Genero 6.00.03; `$GREDIR` is the `gre` directory of the
+Genero install.)
 
-Important nuance — **those jars are for the GRE's *own* internal logging
-and are not placed on your application's `CLASSPATH`.** Application code
-that does `IMPORT JAVA org.apache.logging.log4j.*` must supply Log4j on
-the `CLASSPATH` itself; with the GRE jars absent you get
-`java.lang.NoClassDefFoundError: org/apache/logging/log4j/Level` at the
-first call. That is why `fglpkg.json` declares **both** `log4j-api` and
-`log4j-core` as `java` dependencies — `fglpkg install` downloads them
-into `.fglpkg/jars`, and the `Makefile` puts that directory on the
-`CLASSPATH` for both `fglcomp` and `fglrun`.
+Because those jars enter a JVM only via `gre.jar`'s manifest, they are
+**not** on a plain application's `CLASSPATH`. Application code that does
+`IMPORT JAVA org.apache.logging.log4j.*` must supply Log4j itself; with no
+log4j present you get `java.lang.NoClassDefFoundError:
+org/apache/logging/log4j/Level` at the first call. That is why
+`fglpkg.json` declares **both** `log4j-api` and `log4j-core` as `java`
+dependencies — `fglpkg install` downloads them into `.fglpkg/jars`, and
+the `Makefile` puts that directory on the `CLASSPATH` for both `fglcomp`
+and `fglrun`.
 
-Consequences you must respect:
+This package ships the **latest Log4j 2.x** (currently **2.26.1**), not
+the Report Engine's older 2.17.1 — 2.17.1 carries three known CVEs
+(fixed in 2.25.3 / 2.25.4) that block publication.
 
-1. **Pin to the GRE's version (2.17.1).** Even though the GRE's copy
-   isn't on your app classpath, your app's JVM is the GRE's JVM. Matching
-   the GRE's bundled version (2.17.1) avoids any chance of two different
-   Log4j versions being loaded into the same VM, and avoids
-   `NoSuchMethodError` / `LinkageError` from `log4j-api`/`log4j-core`
-   skew. **Do not bump one of the two without the other.**
+Rules you must respect:
 
-2. **Co-existence with other packages.** Packages such as
-   [`poiapi`](https://github.com/4js-mikefolcher/poiapi) also depend on
-   `log4j-api 2.17.1` for the same reason. Pinning here keeps a single,
-   consistent Log4j version across an application's dependency set.
+1. **Keep `log4j-api` and `log4j-core` in lock-step.** The one real
+   hazard is a *version skew* between the two (e.g. api 2.26.1 + core
+   2.17.1 in one VM → `NoSuchMethodError` / `AbstractMethodError`). Always
+   bump both together. Matching the Report Engine's exact version is **not**
+   required.
 
-3. **Both `log4j-api` and `log4j-core` are required at runtime.**
-   `log4j-api` is the facade; `log4j-core` is the implementation that
-   actually emits log records and that this package reconfigures for
-   `setLevel`/`setRootLevel`. Neither is optional.
+2. **When the Report Engine runs in-process, your log4j must come *first*
+   on the `CLASSPATH`.** If the same `fglrun` program both logs through
+   this package *and* drives the Report Engine in the same JVM, `gre.jar`
+   is on the classpath and its manifest offers 2.17.1. A single classloader
+   exposes only one version of each class, and the **first** copy on the
+   `CLASSPATH` wins for the whole VM. Put `.fglpkg/jars` (both jars) ahead
+   of `gre.jar` so 2.26.1 wins. The Report Engine's own code (built for
+   2.17.1) then runs on 2.26.1 — the backward-compatible direction, which
+   is verified working (see below). The `Makefile` already prepends
+   `.fglpkg/jars`; a consuming app / GAS deployment must ensure the same
+   ordering.
 
-If you upgrade Genero and the bundled Log4j version changes, update the
-two `version` fields in `fglpkg.json` to match — and re-run
-`fglpkg install`.
+3. **Security note — declaring a version is not the same as running it.**
+   If you declare 2.26.1 but let `gre.jar` sit *ahead* of your jars, the
+   older 2.17.1 silently wins at runtime while the audit (which scans the
+   declared version) shows green. Ordering is a correctness *and* a
+   security requirement. Call **`getLog4jInfo()`** at startup to confirm
+   the version actually loaded — it returns e.g.
+   `2.26.1 @ file:.../log4j-core-2.26.1.jar`.
+
+4. **Both `log4j-api` and `log4j-core` are required at runtime.**
+   `log4j-api` is the facade; `log4j-core` emits the log records and is
+   what this package reconfigures for `setLevel`/`setRootLevel`. Neither
+   is optional.
+
+**Verified (Genero 6.00.01 GRE, Java arm64):** with 2.26.1 ahead of
+`gre.jar`, `getLog4jInfo()` reports 2.26.1, logging works with
+`getLastError()` NULL (no skew), and the Report Engine
+(`com.fourjs.report.main.GReportWriter`) loads log4j-api **and**
+log4j-core 2.26.1 and emits records through it with no `LinkageError`.
+The Report Engine runs fine on 2.26.1.
 
 ## Runtime level changes: why not `Configurator`?
 
@@ -100,7 +123,7 @@ the demo (`setLevel(name,"WARN")` suppresses subsequent `INFO`).
 ## Installation
 
 ```bash
-fglpkg install            # fetches log4j-api / log4j-core 2.17.1 into .fglpkg/jars
+fglpkg install            # fetches log4j-api / log4j-core 2.26.1 into .fglpkg/jars
 ```
 
 Add the package to a consuming project's `fglpkg.json` dependencies, or
@@ -136,6 +159,7 @@ All functions live in module `com.fourjs.log4j.Log4j`.
 | `setRootLevel(levelName)` | Set the root logger's level (edits the running `Configuration`; takes effect immediately). |
 | `shutdown()` | Flush and stop Log4j; call before program exit. |
 | `getLastError() RETURNS STRING` | Message from the most recent failed call (`NULL` if none). |
+| `getLog4jInfo() RETURNS STRING` | Diagnostic: the log4j-core version and JAR actually loaded (`"<version> @ <jar-url>"`). Use it to confirm the shipped version won the classloader when the Report Engine runs in-process. |
 
 A `name` of `NULL` or `""` targets the **root logger**. Level names are
 case-insensitive: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`

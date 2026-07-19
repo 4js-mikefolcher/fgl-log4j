@@ -24,9 +24,11 @@ PACKAGE com.fourjs.log4j
 #+ setLevel()/setRootLevel() -- see applyLevel() for why we edit the
 #+ Configuration directly instead of using log4j-core's Configurator.
 #+
-#+ Requires log4j-api and log4j-core 2.17.1 on the CLASSPATH (fglpkg
-#+ installs them). The GRE bundles its own copy for internal use only;
-#+ see README.md.
+#+ Requires log4j-api and log4j-core (fglpkg installs the latest 2.x) on
+#+ the CLASSPATH, kept in lock-step. When the Genero Report Engine runs
+#+ in-process these must precede gre.jar so this version wins the single
+#+ classloader; getLog4jInfo() reports which copy actually loaded. See
+#+ README.md.
 
 IMPORT JAVA org.apache.logging.log4j.LogManager
 IMPORT JAVA org.apache.logging.log4j.Logger
@@ -35,6 +37,11 @@ IMPORT JAVA org.apache.logging.log4j.core.LoggerContext
 IMPORT JAVA org.apache.logging.log4j.core.config.Configuration
 IMPORT JAVA org.apache.logging.log4j.core.config.LoggerConfig
 IMPORT JAVA java.lang.Object
+IMPORT JAVA java.lang.Class
+IMPORT JAVA java.lang.Package
+IMPORT JAVA java.security.ProtectionDomain
+IMPORT JAVA java.security.CodeSource
+IMPORT JAVA java.net.URL
 
 #+ Java Object[] used to pass "{}" substitution arguments to Log4j.
 PRIVATE TYPE objArray ARRAY[] OF java.lang.Object
@@ -370,4 +377,45 @@ END FUNCTION
 #+ The message from the most recent failed Log4j call (NULL if none).
 PUBLIC FUNCTION getLastError() RETURNS STRING
     RETURN m_lastError
+END FUNCTION
+
+#+ Diagnostic: the log4j-core version and the JAR actually loaded into this
+#+ JVM, formatted as "<version> @ <jar-url>".
+#+
+#+ This matters when the Genero Report Engine (gre.jar) runs in-process: its
+#+ manifest Class-Path pulls in its own bundled log4j, so the copy this
+#+ package ships and the copy gre.jar references both compete for the single
+#+ classloader -- whichever is first on the CLASSPATH wins for the whole VM.
+#+ Call this at startup to confirm the version you shipped is the one that
+#+ actually loaded (e.g. a report engine's older copy has not shadowed it).
+PUBLIC FUNCTION getLog4jInfo() RETURNS STRING
+    DEFINE ctx LoggerContext
+    DEFINE cls Class
+    DEFINE pkg Package
+    DEFINE pd ProtectionDomain
+    DEFINE csrc CodeSource
+    DEFINE u URL
+    DEFINE ver, loc STRING
+    TRY
+        LET ctx = CAST(LogManager.getContext(FALSE) AS LoggerContext)
+        LET cls = ctx.getClass()
+        LET pkg = cls.getPackage()
+        IF pkg IS NOT NULL THEN
+            LET ver = pkg.getImplementationVersion()
+        END IF
+        LET pd = cls.getProtectionDomain()
+        IF pd IS NOT NULL THEN
+            LET csrc = pd.getCodeSource()
+            IF csrc IS NOT NULL THEN
+                LET u = csrc.getLocation()
+                IF u IS NOT NULL THEN
+                    LET loc = u.toString()
+                END IF
+            END IF
+        END IF
+        RETURN SFMT("%1 @ %2", NVL(ver, "unknown"), NVL(loc, "unknown"))
+    CATCH
+        LET m_lastError = err_get(status)
+        RETURN SFMT("%1 @ %2", NVL(ver, "unknown"), NVL(loc, "unknown"))
+    END TRY
 END FUNCTION
